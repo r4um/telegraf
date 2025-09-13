@@ -59,7 +59,7 @@ var (
 	//   1 Raw_Read_Error_Rate     PO-RC-+  200   200   051    -    30
 	//   5 Reallocated_Sector_Ct   POS-C-+  200   200   140    -    0
 	// 192 Power-Off_Retract_Count -O-RCK+  200   200   000    -    4
-	attribute = regexp.MustCompile(`^\s*([0-9]+)\s(\S+)\s+([-P][-O][-S][-R][-C][-K])[\+]?\s+([0-9]+)\s+([0-9]+)\s+([0-9-]+)\s+([-\w]+)\s+([\w\+\.]+).*$`)
+	attribute = regexp.MustCompile(`^\s*([0-9]+)\s(\S+)\s+([-P][-O][-S][-R][-C][-K])[\+]?\s+([0-9]+)\s+([0-9]+)\s+([0-9-]+)\s+([-\w]+)\s+([\w\+\.\/]+).*$`)
 
 	//  Additional Smart Log for NVME device:nvme0 namespace-id:ffffffff
 	// nvme version 1.14+ metrics:
@@ -917,17 +917,18 @@ func difference(a, b []string) []string {
 	return diff
 }
 
-func parseRawValue(rawVal string) (int64, error) {
+func parseRawValue(rawVal string) (interface{}, error) {
 	// Integer
 	if i, err := strconv.ParseInt(rawVal, 10, 64); err == nil {
 		return i, nil
 	}
 
 	// raw attribute with two values, e.g. error rate: error_count/total_count
-	attrParts := strings.Split(rawVal, "/")
-	if len(attrParts) == 2 {
-		if count, err := strconv.ParseInt(attrParts[0], 10, 64); err == nil {
-			return count, nil
+	if numerator, denominator, found := strings.Cut(rawVal, "/"); found {
+		n, nerr := strconv.ParseFloat(numerator, 64)
+		d, derr := strconv.ParseFloat(denominator, 64)
+		if nerr == nil && derr == nil {
+			return n / d, nil
 		}
 	}
 
